@@ -216,7 +216,11 @@ app = FastAPI(title="Ecommerce MCP RAG Agent", lifespan=lifespan)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "service": "ecommerce-mcp-rag-agent",
+        "version": "0.1.0",
+    }
 
 
 @app.post("/query")
