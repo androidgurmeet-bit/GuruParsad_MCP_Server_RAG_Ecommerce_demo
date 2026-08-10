@@ -1,0 +1,44 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Runs uvicorn in-process under debugpy so breakpoints in main.py bind.
+            // Deliberately no --reload: the reloader runs the app in a child
+            // process that the debugger is not attached to, which silently
+            // disables every breakpoint.
+            "name": "FastAPI: uvicorn (debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000"
+            ],
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            // Attach to a server started with:
+            //   .venv/bin/python -m debugpy --listen 5678 -m uvicorn main:app --port 8000
+            "name": "FastAPI: attach to running server",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "${workspaceFolder}"
+                }
+            ],
+            "justMyCode": false
+        }
+    ]
+}

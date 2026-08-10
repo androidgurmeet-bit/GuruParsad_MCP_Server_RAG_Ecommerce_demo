@@ -1,10 +1,14 @@
 import sys
+import tempfile
+import uuid
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 import json
+import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
@@ -16,6 +20,9 @@ from pydantic import BaseModel
 
 from app.embeddings import chunk_text, clean_text, create_embeddings, load_json
 from app.rag import create_index, retrieve_chunks
+from app.voice.model import Transcript
+from app.voice.transcript_generator import save_transcript
+from app.voice.whisper_service import transcribe
 
 load_dotenv()
 
@@ -214,6 +221,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Ecommerce MCP RAG Agent", lifespan=lifespan)
 
 
+@app.get("/")
+async def root():
+    return {
+        "service": "ecommerce-mcp-rag-agent",
+        "docs": "/docs",
+        "endpoints": ["/health", "/query", "/products/{product_id}", "/transcribe"],
+    }
+
+
 @app.get("/health")
 async def health():
     return {
@@ -252,3 +268,27 @@ async def product_details(product_id: int):
             return normalize_product(product)
 
     raise HTTPException(status_code=404, detail="product not found")
+
+@app.post("/transcribe", response_model=Transcript)
+async def transcribe_audio(file: UploadFile) -> Transcript:
+    audio = await file.read()
+    if not audio:
+        raise HTTPException(status_code=400, detail="audio file must not be empty")
+
+    call_id = uuid.uuid4().hex
+    suffix = Path(file.filename or "").suffix or ".wav"
+
+    # Whisper reads from disk, so buffer the upload to a temp file first.
+    handle, temp_path = tempfile.mkstemp(suffix=suffix)
+    try:
+        with os.fdopen(handle, "wb") as temp_file:
+            temp_file.write(audio)
+
+        # Decoding is blocking CPU work; keep it off the event loop.
+        transcript = await run_in_threadpool(transcribe, temp_path)
+    finally:
+        os.unlink(temp_path)
+
+    await run_in_threadpool(save_transcript, call_id, transcript)
+
+    return Transcript(**transcript)
