@@ -17,3 +17,6 @@ wheels/
 
 # Generated voice transcripts
 transcripts/
+
+# Generated conversation records
+conversations/

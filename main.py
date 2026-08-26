@@ -18,6 +18,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pydantic import BaseModel
 
+from app.conversation.conversation_service import ConversationService
 from app.embeddings import chunk_text, clean_text, create_embeddings, load_json
 from app.rag import create_index, retrieve_chunks
 from app.voice.model import Transcript
@@ -30,6 +31,8 @@ load_dotenv()
 class QueryRequest(BaseModel):
     query: str
 
+
+conversation_service = ConversationService()
 
 PRODUCT_RESPONSE_FIELDS = ("id", "name", "price", "quantity", "productUrl")
 PRODUCT_DATA_PATH = Path(__file__).parent / "data" / "product.json"
@@ -290,5 +293,10 @@ async def transcribe_audio(file: UploadFile) -> Transcript:
         os.unlink(temp_path)
 
     await run_in_threadpool(save_transcript, call_id, transcript)
+
+    # Whisper returns 200 with an empty transcript when it heard nothing; there
+    # is no conversation to record in that case.
+    if transcript["transcript"].strip():
+        await conversation_service.create_from_transcript(call_id, transcript)
 
     return Transcript(**transcript)

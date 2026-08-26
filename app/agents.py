@@ -20,7 +20,9 @@ class CalculatorAgent(Agent):
 
     def can_handle(self, query: str) -> bool:
         # Only route clearly mathematical expressions to the calculator.
-        return any(op in query for op in ["+", "-", "*", "/"]) and not query.lower().strip().startswith("what")
+        return any(
+            op in query for op in ["+", "-", "*", "/"]
+        ) and not query.lower().strip().startswith("what")
 
     def run(self, query: str) -> str:
         return calculator_tool(query)
@@ -39,7 +41,9 @@ class RAGAgent(Agent):
         return True
 
     def run(self, query: str) -> str:
-        return rag_tool(query, self.model, self.index, self.chunks, ask_llm, self.memory)
+        return rag_tool(
+            query, self.model, self.index, self.chunks, ask_llm, self.memory
+        )
 
 
 class MultiAgent:
